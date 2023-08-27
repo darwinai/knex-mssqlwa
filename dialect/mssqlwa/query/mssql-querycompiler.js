@@ -1,14 +1,14 @@
 // MSSQL Query Compiler
 // ------
-const QueryCompiler = require('../../../query/querycompiler');
+const QueryCompiler = require('knex/lib/query/querycompiler');
 
 const compact = require('lodash/compact');
 const identity = require('lodash/identity');
 const isEmpty = require('lodash/isEmpty');
-const Raw = require('../../../raw.js');
+const Raw = require('knex/lib/raw.js');
 const {
   columnize: columnize_,
-} = require('../../../formatter/wrappingFormatter');
+} = require('knex/lib/formatter/wrappingFormatter');
 
 const components = [
   'comments',

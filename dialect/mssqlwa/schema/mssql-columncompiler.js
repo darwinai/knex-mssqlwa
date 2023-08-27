@@ -1,9 +1,9 @@
 // MSSQL Column Compiler
 // -------
-const ColumnCompiler = require('../../../schema/columncompiler');
-const { toNumber } = require('../../../util/helpers');
-const { formatDefault } = require('../../../formatter/formatterUtils');
-const { operator: operator_ } = require('../../../formatter/wrappingFormatter');
+const ColumnCompiler = require('knex/lib/schema/columncompiler');
+const { toNumber } = require('knex/lib/util/helpers');
+const { formatDefault } = require('knex/lib/formatter/formatterUtils');
+const { operator: operator_ } = require('knex/lib/formatter/wrappingFormatter');
 
 class ColumnCompiler_MSSQL extends ColumnCompiler {
   constructor(client, tableCompiler, columnBuilder) {

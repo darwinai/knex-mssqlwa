@@ -1,8 +1,9 @@
-const Transaction = require('../../execution/transaction');
+const Transaction = require('knex/lib/execution/transaction');
 const debug = require('debug')('knex:tx');
 
 class Transaction_MSSQL extends Transaction {
   begin(/** @type {import('tedious').Connection} */ conn) {
+    throw Error('Not implemented!');
     debug('transaction::begin id=%s', this.txid);
 
     return new Promise((resolve, reject) => {
@@ -25,6 +26,7 @@ class Transaction_MSSQL extends Transaction {
   }
 
   savepoint(conn) {
+    throw Error('Not implemented!');
     debug('transaction::savepoint id=%s', this.txid);
 
     return new Promise((resolve, reject) => {
@@ -55,6 +57,7 @@ class Transaction_MSSQL extends Transaction {
   }
 
   commit(conn, value) {
+    throw Error('Not implemented!');
     debug('transaction::commit id=%s', this.txid);
 
     return new Promise((resolve, reject) => {
@@ -78,10 +81,12 @@ class Transaction_MSSQL extends Transaction {
   }
 
   release(conn, value) {
+    throw Error('Not implemented!');
     return this._resolver(value);
   }
 
   rollback(conn, error) {
+    throw Error('Not implemented!');
     this._completed = true;
     debug('transaction::rollback id=%s', this.txid);
 
@@ -135,6 +140,7 @@ class Transaction_MSSQL extends Transaction {
   }
 
   rollbackTo(conn, error) {
+    throw Error('Not implemented!');
     return this.rollback(conn, error).then(
       () =>
         void this.trxClient.emit('query', {

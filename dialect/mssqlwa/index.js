@@ -3,7 +3,7 @@
 const map = require('lodash/map');
 const isNil = require('lodash/isNil');
 
-const Client = require('../../client');
+const knex = require('knex');
 const MSSQL_Formatter = require('./mssql-formatter');
 const Transaction = require('./transaction');
 const QueryCompiler = require('./query/mssql-querycompiler');
@@ -11,58 +11,43 @@ const SchemaCompiler = require('./schema/mssql-compiler');
 const TableCompiler = require('./schema/mssql-tablecompiler');
 const ViewCompiler = require('./schema/mssql-viewcompiler');
 const ColumnCompiler = require('./schema/mssql-columncompiler');
-const QueryBuilder = require('../../query/querybuilder');
-const { setHiddenProperty } = require('../../util/security');
+const QueryBuilder = require('knex/lib/query/querybuilder');
+const { setHiddenProperty } = require('knex/lib/util/security');
 
-const debug = require('debug')('knex:mssql');
+const debug = require('debug')('knex:mssqlwa');
 
 const SQL_INT4 = { MIN: -2147483648, MAX: 2147483647 };
 const SQL_BIGINT_SAFE = { MIN: -9007199254740991, MAX: 9007199254740991 };
 
 // Always initialize with the "QueryBuilder" and "QueryCompiler" objects, which
 // extend the base 'lib/query/builder' and 'lib/query/compiler', respectively.
-class Client_MSSQL extends Client {
+class Client_MSSQL_WA extends knex.Client {
+  static resultMode = undefined;
+
   constructor(config = {}) {
     super(config);
   }
 
-  /**
-   * @param {import('knex').Config} options
-   */
   _generateConnection() {
-    const settings = this.connectionSettings;
-    settings.options = settings.options || {};
+    const config = this.config;
+    const settings = this.config.connection;
 
-    /** @type {import('tedious').ConnectionConfig} */
     const cfg = {
       authentication: {
         type: settings.type || 'default',
         options: {
           userName: settings.userName || settings.user,
           password: settings.password,
-          domain: settings.domain,
-          token: settings.token,
-          clientId: settings.clientId,
-          clientSecret: settings.clientSecret,
-          tenantId: settings.tenantId,
-          msiEndpoint: settings.msiEndpoint,
         },
       },
+      driver: config.driver || 'SQL Server Native Client 11.0',
       server: settings.server || settings.host,
+      database: settings.database,
+      port: settings.port || 1433,
       options: {
-        database: settings.database,
         encrypt: settings.encrypt || false,
-        port: settings.port || 1433,
-        connectTimeout: settings.connectionTimeout || settings.timeout || 15000,
-        requestTimeout: !isNil(settings.requestTimeout)
-          ? settings.requestTimeout
-          : 15000,
-        rowCollectionOnDone: false,
-        rowCollectionOnRequestCompletion: false,
-        useColumnNames: false,
-        tdsVersion: settings.options.tdsVersion || '7_4',
-        appName: settings.options.appName || 'knex',
-        trustServerCertificate: false,
+        trustServerCertificate: settings.options.trustServerCertificate || false,
+        trustedConnection: settings.options.trustedConnection || false,
         ...settings.options,
       },
     };
@@ -70,30 +55,13 @@ class Client_MSSQL extends Client {
     if (cfg.authentication.options.password) {
       setHiddenProperty(cfg.authentication.options);
     }
-
-    // tedious always connect via tcp when port is specified
-    if (cfg.options.instanceName) delete cfg.options.port;
-
-    if (isNaN(cfg.options.requestTimeout)) cfg.options.requestTimeout = 15000;
-    if (cfg.options.requestTimeout === Infinity) cfg.options.requestTimeout = 0;
-    if (cfg.options.requestTimeout < 0) cfg.options.requestTimeout = 0;
-
-    if (settings.debug) {
-      cfg.options.debug = {
-        packet: true,
-        token: true,
-        data: true,
-        payload: true,
-      };
-    }
-
+    
     return cfg;
   }
 
   _driver() {
-    const tds = require('tedious');
-
-    return tds;
+    const msnodesql = require('mssql/msnodesqlv8');
+    return msnodesql;
   }
 
   formatter() {
@@ -136,38 +104,43 @@ class Client_MSSQL extends Client {
     return `[${value.replace(/[[\]]+/g, '')}]`;
   }
 
+  initializePool(config = this.config) {
+    super.initializePool(config);
+    this.resultMode = config.resultMode || 'default';
+
+    const settings = this._generateConnection();
+    const connectionString = 
+      `Driver={${settings.driver}};`+
+      `UID=${settings.authentication.options.userName};`+
+      `PWD=${settings.authentication.options.password};`+
+      `Server=${settings.server},${settings.port};`+
+      `Database=${settings.database};`+
+      `Trusted_Connection=${settings.options.trustedConnection ? 'yes' : 'no'};`+
+      `TrustServerCertificate=${settings.options.trustServerCertificate ? 'yes' : 'no'};` +
+      `Encrypt=${settings.options.encrypt ? 'yes' : 'no'};`
+    const poolConfig = {
+      connectionString: connectionString,
+      connectionPooling: true,
+      pool: config.pool
+    };
+    
+    const Driver = this._driver();
+    const connectionPool = new Driver.ConnectionPool(poolConfig, function(err){
+      if (err){
+        console.log(err);
+        }
+      }
+    )
+    this._connectionPool = connectionPool;
+  }
+
   // Get a raw connection, called by the `pool` whenever a new
   // connection needs to be added to the pool.
   acquireRawConnection() {
     return new Promise((resolver, rejecter) => {
       debug('connection::connection new connection requested');
-      const Driver = this._driver();
-      const settings = Object.assign({}, this._generateConnection());
-
-      const connection = new Driver.Connection(settings);
-
-      connection.connect((err) => {
-        if (err) {
-          debug('connection::connect error: %s', err.message);
-          return rejecter(err);
-        }
-
-        debug('connection::connect connected to server');
-
-        connection.connected = true;
-        connection.on('error', (e) => {
-          debug('connection::error message=%s', e.message);
-          connection.__knex__disposed = e;
-          connection.connected = false;
-        });
-
-        connection.once('end', () => {
-          connection.connected = false;
-          connection.__knex__disposed = 'Connection to server was terminated.';
-          debug('connection::end connection ended.');
-        });
-
-        return resolver(connection);
+      this._connectionPool.connect().then(pool => { 
+        return resolver(pool);
       });
     });
   }
@@ -192,6 +165,11 @@ class Client_MSSQL extends Client {
 
   // Position the bindings for the query.
   positionBindings(sql) {
+    if (sql.startsWith("exec")) {
+      debug('Skipping position binding for a procedure.');
+      return sql;
+    }
+
     let questionCount = -1;
     return sql.replace(/\\?\?/g, (match) => {
       if (match === '\\?') {
@@ -199,20 +177,78 @@ class Client_MSSQL extends Client {
       }
 
       questionCount += 1;
-      return `@p${questionCount}`;
+      return `@c${questionCount}`;
     });
   }
 
   _chomp(connection) {
-    if (connection.state.name === 'LoggedIn') {
-      const nextRequest = this.requestQueue.pop();
-      if (nextRequest) {
+    throw Error('Not implemented!');
+    if (connection.connected === true) {
+      // const nextRequest = this.requestQueue.pop();
+      const request = this.requestQueue.pop();
+      if (request) {
         debug(
           'connection::query executing query, %d more in queue',
           this.requestQueue.length
         );
+        // try {
+        //   request.validateParameters(this.databaseCollation);
+        // } catch (error) {
+        //   request.error = error;
+        //   // process.nextTick(() => {
+        //     //   this.debug.log(error.message);
+        //     //   request.callback(error);
+        //     // });
+        //     return;
+        //   }
+        // this.logger.warn(JSON.stringify(request, null, 0));
+        const parameters = [];
+        parameters.push({
+          type: this._driver().NVarChar,
+          name: 'statement',
+          value: request.sql,
+          output: false,
+          length: undefined,
+          precision: undefined,
+          scale: undefined
+        });
+    
+        if (request.parameters.length) {
+          parameters.push({
+            type: this._driver().NVarChar,
+            name: 'params',
+            value: request.makeParamsParameter(request.parameters),
+            output: false,
+            length: undefined,
+            precision: undefined,
+            scale: undefined
+          });
+          parameters.push(...request.parameters);
+        }
+        const execRegex = /^exec\s+(\w+)/i;
+        const match = request.sql.match(execRegex);
 
-        connection.execSql(nextRequest);
+        if (match) {
+          const storedProcedureName = match[1];
+        } else {
+          request.query(request.sql, (err, result) => {
+            if (err) {
+              this.logger.error(err);
+              return;
+            }
+            for (const row of result.recordsets[0]) {
+              request.emit('row', row);
+            }
+            
+            // console.log(result.recordsets.length) // count of recordsets returned by the procedure
+            // console.log(result.recordsets[0].length) // count of rows contained in first recordset
+            // console.log(result.recordset) // first recordset from result.recordsets
+            // console.log(result.returnValue) // procedure return value
+            // console.log(result.output) // key/value collection of output values
+            // console.log(result.rowsAffected) // array of numbers, each number represents the number of rows affected by executed statemens
+          });
+        }
+        // connection.execSql(nextRequest);
       }
     }
   }
@@ -231,16 +267,8 @@ class Client_MSSQL extends Client {
 
     debug('request::request sql=%s', sql);
 
-    const request = new Driver.Request(sql, (err, remoteRowCount) => {
-      if (err) {
-        debug('request::error message=%s', err.message);
-        return callback(err);
-      }
-
-      rowCount = remoteRowCount;
-      debug('request::callback rowCount=%d', rowCount);
-    });
-
+    const request = this._connectionPool.request();
+    request.sql = sql;
     request.on('prepared', () => {
       debug('request %s::request prepared', this.id);
     });
@@ -283,6 +311,7 @@ class Client_MSSQL extends Client {
   // Grab a connection, run the query via the MSSQL streaming interface,
   // and pass that through to the stream we've sent back to the client.
   _stream(connection, query, /** @type {NodeJS.ReadWriteStream} */ stream) {
+    throw Error('Not implemented!');
     return new Promise((resolve, reject) => {
       const request = this._makeRequest(query, (err) => {
         if (err) {
@@ -318,11 +347,13 @@ class Client_MSSQL extends Client {
     });
   }
 
-  _assignBindings(request, bindings) {
+  _assignBindings(request, bindings, paramNames) {
     if (Array.isArray(bindings)) {
       for (let i = 0; i < bindings.length; i++) {
         const binding = bindings[i];
-        this._setReqInput(request, i, binding);
+
+        const bindingName = paramNames[i].replace("@", "");
+        this._setReqInput(request, bindingName, binding);
       }
     }
   }
@@ -387,34 +418,34 @@ class Client_MSSQL extends Client {
   // Runs the query on the specified connection, providing the bindings
   // and any other necessary prep work.
   _query(connection, query) {
-    return new Promise((resolve, reject) => {
-      const rows = [];
-      const request = this._makeRequest(query, (err, count) => {
-        if (err) {
-          return reject(err);
+    const sql = typeof query === 'string' ? query : query.sql;
+    const procNameMatch = sql.match(/exec\s+([^@\s]+)/);
+    const procName = procNameMatch ? procNameMatch[1] : null;
+    const paramNames = sql.match(/@(\w+)/g);
+  
+    const request = connection.request();
+    this._assignBindings(request, query.bindings, paramNames);
+    return new Promise(function (resolver, rejecter) {
+        if (sql.startsWith("exec")) {
+          request.execute(procName, function (err, response) {
+            if (err) return rejecter(err);
+            query.response = response;
+            resolver(query);
+          });
+        } else {
+          request.query(sql, function (err, response) {
+            if (err) return rejecter(err);
+            query.response = response;
+            resolver(query);
+          });
         }
 
-        query.response = rows;
-
-        process.nextTick(() => this._chomp(connection));
-
-        resolve(query);
       });
-
-      request.on('row', (row) => {
-        debug('request::row');
-        rows.push(row);
-      });
-
-      this._assignBindings(request, query.bindings);
-      this._enqueueRequest(request, connection);
-    });
   }
 
   // sets a request input parameter. Detects bigints and decimals and sets type appropriately.
-  _setReqInput(req, i, inputBinding) {
-    const [binding, tediousType] = this._typeForBinding(inputBinding);
-    const bindingName = 'p'.concat(i);
+  _setReqInput(req, bindingName, inputBinding) {
+    const [binding, bindingType] = this._typeForBinding(inputBinding);
     let options;
 
     if (typeof binding === 'number' && binding % 1 !== 0) {
@@ -422,9 +453,9 @@ class Client_MSSQL extends Client {
     }
 
     debug(
-      'request::binding pos=%d type=%s value=%s',
-      i,
-      tediousType.name,
+      'request::binding bindingName=%s type=%s value=%s',
+      bindingName,
+      bindingType.name,
       binding
     );
 
@@ -433,44 +464,24 @@ class Client_MSSQL extends Client {
         length: 'max',
       };
     }
-
-    req.addParameter(bindingName, tediousType, binding, options);
+    req.input(bindingName, bindingType, binding, options);
   }
 
   // Process the response as returned from the query.
   processResponse(query, runner) {
     if (query == null) return;
-    let { response } = query;
+    const { recordsets, recordset } = query.response;
     const { method } = query;
 
     if (query.output) {
       return query.output.call(runner, response);
     }
 
-    response = response.map((row) =>
-      row.reduce((columns, r) => {
-        const colName = r.metadata.colName;
-
-        if (columns[colName]) {
-          if (!Array.isArray(columns[colName])) {
-            columns[colName] = [columns[colName]];
-          }
-
-          columns[colName].push(r.value);
-        } else {
-          columns[colName] = r.value;
-        }
-
-        return columns;
-      }, {})
-    );
-
-    if (query.output) return query.output.call(runner, response);
     switch (method) {
       case 'select':
-        return response;
+        return recordset;
       case 'first':
-        return response[0];
+        return recordset[0];
       case 'pluck':
         return map(response, query.pluck);
       case 'insert':
@@ -479,22 +490,29 @@ class Client_MSSQL extends Client {
       case 'counter':
         if (query.returning) {
           if (query.returning === '@@rowcount') {
-            return response[0][''];
+            return recordset[''];
           }
         }
-        return response;
+        return recordset;
       default:
-        return response;
+        switch (this.resultMode) {
+          case 'multi':
+            return recordsets;
+          case 'mixed':
+            return recordsets.length === 1 ? recordset : recordsets;
+          default:
+            return recordset;
+        }
     }
   }
 }
 
-Object.assign(Client_MSSQL.prototype, {
+Object.assign(Client_MSSQL_WA.prototype, {
   requestQueue: [],
 
-  dialect: 'mssql',
+  dialect: 'mssqlwa',
 
-  driverName: 'mssql',
+  driverName: 'msnodesqlv8',
 });
 
-module.exports = Client_MSSQL;
+module.exports = Client_MSSQL_WA;

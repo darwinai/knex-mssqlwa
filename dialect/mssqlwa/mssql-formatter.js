@@ -1,4 +1,4 @@
-const Formatter = require('../../formatter');
+const Formatter = require('knex/lib/formatter');
 
 class MSSQL_Formatter extends Formatter {
   // Accepts a string or array of columns to wrap as appropriate.

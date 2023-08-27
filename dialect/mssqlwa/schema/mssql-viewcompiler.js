@@ -1,9 +1,9 @@
 /* eslint max-len: 0 */
 
-const ViewCompiler = require('../../../schema/viewcompiler.js');
+const ViewCompiler = require('knex/lib/schema/viewcompiler.js');
 const {
   columnize: columnize_,
-} = require('../../../formatter/wrappingFormatter');
+} = require('knex/lib/formatter/wrappingFormatter');
 
 class ViewCompiler_MSSQL extends ViewCompiler {
   constructor(client, viewCompiler) {

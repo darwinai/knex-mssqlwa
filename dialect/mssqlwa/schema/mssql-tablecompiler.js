@@ -2,9 +2,9 @@
 
 // MSSQL Table Builder & Compiler
 // -------
-const TableCompiler = require('../../../schema/tablecompiler');
-const helpers = require('../../../util/helpers');
-const { isObject } = require('../../../util/is');
+const TableCompiler = require('knex/lib/schema/tablecompiler');
+const helpers = require('knex/lib/util/helpers');
+const { isObject } = require('knex/lib/util/is');
 
 // Table Compiler
 // ------

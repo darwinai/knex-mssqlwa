@@ -1,0 +1,38 @@
+{
+  "name": "knex-mssqlwa",
+  "version": "1.0.2",
+  "description": "The Knex MSSQL dialect that uses the msnodesqlv8 driver to support Windows Authentication (WA).",
+  "main": "knex-mssqlwa",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/darwinai/knex-mssqlwa.git"
+  },
+  "engines": {
+    "node": ">=12"
+  },
+  "scripts": {
+    "test": "jest --detectOpenHandles"
+  },
+  "keywords": [
+    "mssql",
+    "integarted auth",
+    "trusted connection",
+    "knex",
+    "node",
+    "query",
+    "database",
+    "db",
+    "darwinai"
+  ],
+  "author": "hadi@darwinai.ca",
+  "license": "MIT",
+  "dependencies": {
+    "knex": "^2.5.1",
+    "lodash": "^4.17.21",
+    "msnodesqlv8": "^4.1.0",
+    "mssql": "^9.1.3"
+  },
+  "devDependencies": {
+    "jest": "^29.6.4"
+  }
+}

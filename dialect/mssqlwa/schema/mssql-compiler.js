@@ -1,6 +1,6 @@
 // MySQL Schema Compiler
 // -------
-const SchemaCompiler = require('../../../schema/compiler');
+const SchemaCompiler = require('knex/lib/schema/compiler');
 
 class SchemaCompiler_MSSQL extends SchemaCompiler {
   constructor(client, builder) {
