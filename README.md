@@ -1,6 +1,7 @@
 # Knex MSSQL Client with Windows Authentication (WA) Support
 
-[![npm version](https://img.shields.io/badge/npm-v1.0.2-blue)](https://npmjs.org/package/knex-mssqlwa)
+[![npm version](http://img.shields.io/npm/v/knex-mssqlwa.svg)](https://npmjs.org/package/knex-mssqlwa)
+[![npm downloads](https://img.shields.io/npm/dm/knex-mssqlwa.svg)](https://npmjs.org/package/knex-mssqlwa)
 
 This Knex dialect allows connecting to a MSSQL database using the windows auth.
 
