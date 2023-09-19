@@ -44,6 +44,8 @@ class Client_MSSQL_WA extends knex.Client {
       server: settings.server || settings.host,
       database: settings.database,
       port: settings.port || 1433,
+      connectionTimeout: settings.connectionTimeout || settings.timeout || 15000,
+      requestTimeout: !isNil(settings.requestTimeout) ? settings.requestTimeout : 15000,
       options: {
         encrypt: settings.encrypt || false,
         trustServerCertificate: settings.options.trustServerCertificate || false,
@@ -55,7 +57,20 @@ class Client_MSSQL_WA extends knex.Client {
     if (cfg.authentication.options.password) {
       setHiddenProperty(cfg.authentication.options);
     }
-    
+
+    if (isNaN(cfg.options.requestTimeout)) cfg.options.requestTimeout = 15000;
+    if (cfg.options.requestTimeout === Infinity) cfg.options.requestTimeout = 0;
+    if (cfg.options.requestTimeout < 0) cfg.options.requestTimeout = 0;
+
+    if (settings.debug) {
+      cfg.options.debug = {
+        packet: true,
+        token: true,
+        data: true,
+        payload: true,
+      };
+    }
+
     return cfg;
   }
 
@@ -109,7 +124,7 @@ class Client_MSSQL_WA extends knex.Client {
     this.resultMode = config.resultMode || 'default';
 
     const settings = this._generateConnection();
-    const connectionString = 
+    const connectionString =
       `Driver={${settings.driver}};`+
       `UID=${settings.authentication.options.userName};`+
       `PWD=${settings.authentication.options.password};`+
@@ -121,9 +136,10 @@ class Client_MSSQL_WA extends knex.Client {
     const poolConfig = {
       connectionString: connectionString,
       connectionPooling: true,
-      pool: config.pool
+      pool: config.pool,
+      ...settings,
     };
-    
+
     const Driver = this._driver();
     const connectionPool = new Driver.ConnectionPool(poolConfig, function(err){
       if (err){
@@ -139,7 +155,9 @@ class Client_MSSQL_WA extends knex.Client {
   acquireRawConnection() {
     return new Promise((resolver, rejecter) => {
       debug('connection::connection new connection requested');
-      this._connectionPool.connect().then(pool => { 
+      this._connectionPool.connect((err, pool) => {
+        if (err)
+          return rejecter(err);
         return resolver(pool);
       });
     });
