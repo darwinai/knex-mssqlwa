@@ -125,14 +125,16 @@ class Client_MSSQL_WA extends knex.Client {
 
     const settings = this._generateConnection();
     const connectionString =
-      `Driver={${settings.driver}};`+
-      `UID=${settings.authentication.options.userName};`+
-      `PWD=${settings.authentication.options.password};`+
-      `Server=${settings.server},${settings.port};`+
-      `Database=${settings.database};`+
-      `Trusted_Connection=${settings.options.trustedConnection ? 'yes' : 'no'};`+
-      `TrustServerCertificate=${settings.options.trustServerCertificate ? 'yes' : 'no'};` +
-      `Encrypt=${settings.options.encrypt ? 'yes' : 'no'};`
+      `Driver={${settings.driver}};` +
+      `UID=${settings.authentication.options.userName};` +
+      `PWD=${settings.authentication.options.password};` +
+      `Server=${settings.server},${settings.port};` +
+      `Database=${settings.database};` +
+      `Trusted_Connection=${settings.options.trustedConnection ? 'yes' : 'no'};` +
+      `TrustServerCertificate=${
+        settings.options.trustServerCertificate ? 'yes' : 'no'
+      };` +
+      `Encrypt=${settings.options.encrypt ? 'yes' : 'no'};`;
     const poolConfig = {
       connectionString: connectionString,
       connectionPooling: true,
@@ -154,8 +156,7 @@ class Client_MSSQL_WA extends knex.Client {
     return new Promise((resolver, rejecter) => {
       debug('connection::connection new connection requested');
       this._connectionPool.connect((err, pool) => {
-        if (err)
-          return rejecter(err);
+        if (err) return rejecter(err);
         return resolver(pool);
       });
     });
@@ -174,7 +175,7 @@ class Client_MSSQL_WA extends knex.Client {
 
   // Position the bindings for the query.
   positionBindings(sql) {
-    if (sql.startsWith("exec")) {
+    if (sql.startsWith('exec')) {
       debug('Skipping position binding for a procedure.');
       return sql;
     }
@@ -219,9 +220,9 @@ class Client_MSSQL_WA extends knex.Client {
           output: false,
           length: undefined,
           precision: undefined,
-          scale: undefined
+          scale: undefined,
         });
-    
+
         if (request.parameters.length) {
           parameters.push({
             type: this._driver().NVarChar,
@@ -230,7 +231,7 @@ class Client_MSSQL_WA extends knex.Client {
             output: false,
             length: undefined,
             precision: undefined,
-            scale: undefined
+            scale: undefined,
           });
           parameters.push(...request.parameters);
         }
@@ -248,7 +249,7 @@ class Client_MSSQL_WA extends knex.Client {
             for (const row of result.recordsets[0]) {
               request.emit('row', row);
             }
-            
+
             // console.log(result.recordsets.length) // count of recordsets returned by the procedure
             // console.log(result.recordsets[0].length) // count of rows contained in first recordset
             // console.log(result.recordset) // first recordset from result.recordsets
@@ -287,12 +288,7 @@ class Client_MSSQL_WA extends knex.Client {
     });
 
     request.on('doneProc', (rowCount, more) => {
-      debug(
-        'request::doneProc id=%s rowCount=%d more=%s',
-        request.id,
-        rowCount,
-        more
-      );
+      debug('request::doneProc id=%s rowCount=%d more=%s', request.id, rowCount, more);
     });
 
     request.on('doneInProc', (rowCount, more) => {
@@ -361,7 +357,7 @@ class Client_MSSQL_WA extends knex.Client {
       for (let i = 0; i < bindings.length; i++) {
         const binding = bindings[i];
 
-        const bindingName = paramNames[i].replace("@", "");
+        const bindingName = paramNames[i].replace('@', '');
         this._setReqInput(request, bindingName, binding);
       }
     }
@@ -378,10 +374,7 @@ class Client_MSSQL_WA extends knex.Client {
   _typeForBinding(binding) {
     const Driver = this._driver();
 
-    if (
-      this.connectionSettings.options &&
-      this.connectionSettings.options.mapBinding
-    ) {
+    if (this.connectionSettings.options && this.connectionSettings.options.mapBinding) {
       const result = this.connectionSettings.options.mapBinding(binding);
       if (result) {
         return [result.value, result.type];
@@ -431,25 +424,24 @@ class Client_MSSQL_WA extends knex.Client {
     const procNameMatch = sql.match(/exec\s+([^@\s]+)/);
     const procName = procNameMatch ? procNameMatch[1] : null;
     const paramNames = sql.match(/@(\w+)/g);
-  
+
     const request = connection.request();
     this._assignBindings(request, query.bindings, paramNames);
     return new Promise(function (resolver, rejecter) {
-        if (sql.startsWith("exec")) {
-          request.execute(procName, function (err, response) {
-            if (err) return rejecter(err);
-            query.response = response;
-            resolver(query);
-          });
-        } else {
-          request.query(sql, function (err, response) {
-            if (err) return rejecter(err);
-            query.response = response;
-            resolver(query);
-          });
-        }
-
-      });
+      if (sql.startsWith('exec')) {
+        request.execute(procName, function (err, response) {
+          if (err) return rejecter(err);
+          query.response = response;
+          resolver(query);
+        });
+      } else {
+        request.query(sql, function (err, response) {
+          if (err) return rejecter(err);
+          query.response = response;
+          resolver(query);
+        });
+      }
+    });
   }
 
   // sets a request input parameter. Detects bigints and decimals and sets type appropriately.

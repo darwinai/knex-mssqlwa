@@ -60,9 +60,7 @@ class TableCompiler_MSSQL extends TableCompiler {
     const level0name = this.formatter.escapingStringDelimiters(
       this.schemaNameRaw || 'dbo'
     );
-    const level1name = this.formatter.escapingStringDelimiters(
-      this.tableNameRaw
-    );
+    const level1name = this.formatter.escapingStringDelimiters(this.tableNameRaw);
     const args = `N'MS_Description', N'${value}', N'Schema', N'${level0name}', N'Table', N'${level1name}'`;
     const isAlreadyDefined = `EXISTS(SELECT * FROM sys.fn_listextendedproperty(N'MS_Description', N'Schema', N'${level0name}', N'Table', N'${level1name}', NULL, NULL))`;
     this.pushQuery(
@@ -344,9 +342,7 @@ class TableCompiler_MSSQL extends TableCompiler {
     indexName = indexName
       ? this.formatter.wrap(indexName)
       : this._indexCommand('foreign', this.tableNameRaw, columns);
-    this.pushQuery(
-      `ALTER TABLE ${this.tableName()} DROP CONSTRAINT ${indexName}`
-    );
+    this.pushQuery(`ALTER TABLE ${this.tableName()} DROP CONSTRAINT ${indexName}`);
   }
 
   // Compile a drop primary key command.
@@ -354,9 +350,7 @@ class TableCompiler_MSSQL extends TableCompiler {
     constraintName = constraintName
       ? this.formatter.wrap(constraintName)
       : this.formatter.wrap(`${this.tableNameRaw}_pkey`);
-    this.pushQuery(
-      `ALTER TABLE ${this.tableName()} DROP CONSTRAINT ${constraintName}`
-    );
+    this.pushQuery(`ALTER TABLE ${this.tableName()} DROP CONSTRAINT ${constraintName}`);
   }
 
   // Compile a drop unique key command.

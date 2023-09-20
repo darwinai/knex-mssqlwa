@@ -6,9 +6,7 @@ const compact = require('lodash/compact');
 const identity = require('lodash/identity');
 const isEmpty = require('lodash/isEmpty');
 const Raw = require('knex/lib/raw.js');
-const {
-  columnize: columnize_,
-} = require('knex/lib/formatter/wrappingFormatter');
+const { columnize: columnize_ } = require('knex/lib/formatter/wrappingFormatter');
 
 const components = [
   'comments',
@@ -70,10 +68,7 @@ class QueryCompiler_MSSQL extends QueryCompiler {
   // Compiles an "insert" query, allowing for multiple
   // inserts using a single query statement.
   insert() {
-    if (
-      this.single.options &&
-      this.single.options.includeTriggerModifications
-    ) {
+    if (this.single.options && this.single.options.includeTriggerModifications) {
       return this.insertWithTriggers();
     } else {
       return this.standardInsert();
@@ -84,8 +79,7 @@ class QueryCompiler_MSSQL extends QueryCompiler {
     const insertValues = this.single.insert || [];
     const { returning } = this.single;
     let sql =
-      this.with() +
-      `${this._buildTempTable(returning)}insert into ${this.tableName} `;
+      this.with() + `${this._buildTempTable(returning)}insert into ${this.tableName} `;
     const returningSql = returning
       ? this._returning('insert', returning, true) + ' '
       : '';
@@ -124,10 +118,7 @@ class QueryCompiler_MSSQL extends QueryCompiler {
     } else {
       if (insertData.columns.length) {
         sql += `(${this.formatter.columnize(insertData.columns)}`;
-        sql +=
-          `) ${returningSql}values (` +
-          this._buildInsertValues(insertData) +
-          ')';
+        sql += `) ${returningSql}values (` + this._buildInsertValues(insertData) + ')';
       } else if (insertValues.length === 1 && insertValues[0]) {
         sql += returningSql + this._emptyInsertValue;
       } else {
@@ -141,9 +132,7 @@ class QueryCompiler_MSSQL extends QueryCompiler {
     const insertValues = this.single.insert || [];
     let sql = this.with() + `insert into ${this.tableName} `;
     const { returning } = this.single;
-    const returningSql = returning
-      ? this._returning('insert', returning) + ' '
-      : '';
+    const returningSql = returning ? this._returning('insert', returning) + ' ' : '';
 
     if (Array.isArray(insertValues)) {
       if (insertValues.length === 0) {
@@ -168,10 +157,7 @@ class QueryCompiler_MSSQL extends QueryCompiler {
   //#region Update
   // Compiles an `update` query, allowing for a return value.
   update() {
-    if (
-      this.single.options &&
-      this.single.options.includeTriggerModifications
-    ) {
+    if (this.single.options && this.single.options.includeTriggerModifications) {
       return this.updateWithTriggers();
     } else {
       return this.standardUpdate();
@@ -247,10 +233,7 @@ class QueryCompiler_MSSQL extends QueryCompiler {
   //#region Delete
   // Compiles a `delete` query.
   del() {
-    if (
-      this.single.options &&
-      this.single.options.includeTriggerModifications
-    ) {
+    if (this.single.options && this.single.options.includeTriggerModifications) {
       return this.deleteWithTriggers();
     } else {
       return this.standardDelete();
@@ -264,16 +247,12 @@ class QueryCompiler_MSSQL extends QueryCompiler {
     const wheres = this.where();
     const joins = this.join();
     const { returning } = this.single;
-    const returningStr = returning
-      ? ` ${this._returning('del', returning, true)}`
-      : '';
+    const returningStr = returning ? ` ${this._returning('del', returning, true)}` : '';
     const deleteSelector = joins ? `${tableName}${returningStr} ` : '';
     return {
       sql:
         withSQL +
-        `${this._buildTempTable(
-          returning
-        )}delete ${deleteSelector}from ${tableName}` +
+        `${this._buildTempTable(returning)}delete ${deleteSelector}from ${tableName}` +
         (!joins ? returningStr : '') +
         (joins ? ` ${joins}` : '') +
         (wheres ? ` ${wheres}` : '') +
@@ -291,9 +270,7 @@ class QueryCompiler_MSSQL extends QueryCompiler {
     const wheres = this.where();
     const joins = this.join();
     const { returning } = this.single;
-    const returningStr = returning
-      ? ` ${this._returning('del', returning)}`
-      : '';
+    const returningStr = returning ? ` ${this._returning('del', returning)}` : '';
     // returning needs to be before "from" when using join
     const deleteSelector = joins ? `${tableName}${returningStr} ` : '';
     return {
@@ -525,10 +502,7 @@ class QueryCompiler_MSSQL extends QueryCompiler {
   jsonExtract(params) {
     // JSON_VALUE return NULL if we query object or array
     // JSON_QUERY return NULL if we query literal/single value
-    return this._jsonExtract(
-      params.singleValue ? 'JSON_VALUE' : 'JSON_QUERY',
-      params
-    );
+    return this._jsonExtract(params.singleValue ? 'JSON_VALUE' : 'JSON_QUERY', params);
   }
 
   jsonSet(params) {
@@ -545,11 +519,7 @@ class QueryCompiler_MSSQL extends QueryCompiler {
       this.builder,
       this.client,
       this.bindingsHolder
-    )},${this.client.parameter(
-      params.path,
-      this.builder,
-      this.bindingsHolder
-    )}, NULL)`;
+    )},${this.client.parameter(params.path, this.builder, this.bindingsHolder)}, NULL)`;
     return params.alias
       ? this.client.alias(jsonCol, this.formatter.wrap(params.alias))
       : jsonCol;
@@ -560,9 +530,7 @@ class QueryCompiler_MSSQL extends QueryCompiler {
   }
 
   whereJsonSupersetOf(statement) {
-    throw new Error(
-      'Json superset where clause not actually supported by MSSQL'
-    );
+    throw new Error('Json superset where clause not actually supported by MSSQL');
   }
 
   whereJsonSubsetOf(statement) {
@@ -576,9 +544,7 @@ class QueryCompiler_MSSQL extends QueryCompiler {
       this.client,
       this.bindingsHolder
     );
-    return (
-      Array.isArray(statement.values) ? statement.values : [statement.values]
-    )
+    return (Array.isArray(statement.values) ? statement.values : [statement.values])
       .map(function (value) {
         return (
           'JSON_VALUE(' +

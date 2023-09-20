@@ -9,16 +9,12 @@ class SchemaCompiler_MSSQL extends SchemaCompiler {
 
   dropTableIfExists(tableName) {
     const name = this.formatter.wrap(prefixedTableName(this.schema, tableName));
-    this.pushQuery(
-      `if object_id('${name}', 'U') is not null DROP TABLE ${name}`
-    );
+    this.pushQuery(`if object_id('${name}', 'U') is not null DROP TABLE ${name}`);
   }
 
   dropViewIfExists(viewName) {
     const name = this.formatter.wrap(prefixedTableName(this.schema, viewName));
-    this.pushQuery(
-      `if object_id('${name}', 'V') is not null DROP VIEW ${name}`
-    );
+    this.pushQuery(`if object_id('${name}', 'V') is not null DROP VIEW ${name}`);
   }
 
   // Rename a table on the schema.

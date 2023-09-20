@@ -79,9 +79,7 @@ class ColumnCompiler_MSSQL extends ColumnCompiler {
         this.pushQuery(
           `ALTER TABLE ${this.tableCompiler.tableName()} ADD CONSTRAINT ${this.formatter.wrap(
             constraintName
-          )} DEFAULT ${formattedValue} FOR ${this.formatter.wrap(
-            this.getColumnName()
-          )}`
+          )} DEFAULT ${formattedValue} FOR ${this.formatter.wrap(this.getColumnName())}`
         );
       });
       return '';
@@ -142,9 +140,9 @@ class ColumnCompiler_MSSQL extends ColumnCompiler {
 
   checkRegex(regex, constraintName) {
     return this._check(
-      `${this.formatter.wrap(
-        this.getColumnName()
-      )} LIKE ${this.client._escapeBinding('%' + regex + '%')}`,
+      `${this.formatter.wrap(this.getColumnName())} LIKE ${this.client._escapeBinding(
+        '%' + regex + '%'
+      )}`,
       constraintName
     );
   }

@@ -1,9 +1,7 @@
 /* eslint max-len: 0 */
 
 const ViewCompiler = require('knex/lib/schema/viewcompiler.js');
-const {
-  columnize: columnize_,
-} = require('knex/lib/formatter/wrappingFormatter');
+const { columnize: columnize_ } = require('knex/lib/formatter/wrappingFormatter');
 
 class ViewCompiler_MSSQL extends ViewCompiler {
   constructor(client, viewCompiler) {
@@ -16,12 +14,7 @@ class ViewCompiler_MSSQL extends ViewCompiler {
 
     const columnList = columns
       ? ' (' +
-        columnize_(
-          columns,
-          this.viewBuilder,
-          this.client,
-          this.bindingsHolder
-        ) +
+        columnize_(columns, this.viewBuilder, this.client, this.bindingsHolder) +
         ')'
       : '';
 
@@ -39,11 +32,7 @@ class ViewCompiler_MSSQL extends ViewCompiler {
         this.viewName() + '.' + from,
         this.viewBuilder,
         this.bindingsHolder
-      )}, ${this.client.parameter(
-        to,
-        this.viewBuilder,
-        this.bindingsHolder
-      )}, 'COLUMN'`
+      )}, ${this.client.parameter(to, this.viewBuilder, this.bindingsHolder)}, 'COLUMN'`
     );
   }
 
