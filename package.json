@@ -1,6 +1,6 @@
 {
   "name": "knex-mssqlwa",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "The Knex MSSQL dialect that uses the msnodesqlv8 driver to support Windows Authentication (WA).",
   "main": "knex-mssqlwa",
   "repository": {

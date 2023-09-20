@@ -141,12 +141,10 @@ class Client_MSSQL_WA extends knex.Client {
     };
 
     const Driver = this._driver();
-    const connectionPool = new Driver.ConnectionPool(poolConfig, function(err){
-      if (err){
-        console.log(err);
-        }
-      }
-    )
+    const connectionPool = new Driver.ConnectionPool(poolConfig);
+    connectionPool.on('error', (err) => {
+      console.error('A connection error occurred:', err);
+    });
     this._connectionPool = connectionPool;
   }
 
@@ -169,16 +167,9 @@ class Client_MSSQL_WA extends knex.Client {
 
   // Used to explicitly close a connection, called internally by the pool
   // when a connection times out or the pool is shutdown.
-  destroyRawConnection(connection) {
+  async destroyRawConnection(connection) {
     debug('connection::destroy');
-
-    return new Promise((resolve) => {
-      connection.once('end', () => {
-        resolve();
-      });
-
-      connection.close();
-    });
+    return await connection.close();
   }
 
   // Position the bindings for the query.
