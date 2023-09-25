@@ -182,50 +182,90 @@ describe('timeout test suite', () => {
   }, 20000);
 });
 
-test('test concurrent DB connections', async () => {
-  const config = {
-    client: mssqlwa,
-    driver: 'ODBC Driver 18 for SQL Server',
-    connection: {
-      host: 'localhost',
-      database: 'master',
-      port: 1433,
-      options: {
-        encrypt: true,
-        trustedConnection: true,
-        trustServerCertificate: true,
+describe('concurrent DB connections', () => {
+  test('test parallel requests through Promise', async () => {
+    const config = {
+      client: mssqlwa,
+      driver: 'ODBC Driver 18 for SQL Server',
+      connection: {
+        host: 'localhost',
+        database: 'master',
+        // connectionTimeout: 100000,
+        // requestTimeout: 100000,
+        options: {
+          encrypt: true,
+          trustedConnection: true,
+          trustServerCertificate: true,
+        },
       },
-    },
-    pool: {
-      min: 10,
-      max: 100,
-    },
-  };
+      pool: {
+        min: 0,
+        max: 10,
+        // reapIntervalMillis: 100,
+        // acquireTimeoutMillis: 300000,
+        // idleTimeoutMillis: 500,
+        // propagateCreateError: true,
+      },
+      // acquireConnectionTimeout: 5,
+    };
 
-  const numConnections = 100;
-  const dbConnections = [];
+    const db = knex(config);
 
-  try {
-    // Create multiple DB connections concurrently
-    for (let i = 0; i < numConnections; i++) {
-      const db = knex(config);
-      const result = await db.raw('select 1');
-      dbConnections.push({ db, result });
+    const queryPromises = Array.from({ length: 50 });
+    await Promise.all(
+      queryPromises.map(() => {
+        return db.raw('select 1;');
+      })
+    );
+
+    await db.destroy();
+  }, 100000);
+
+  test('test multiple DB connections in a loop', async () => {
+    const config = {
+      client: mssqlwa,
+      driver: 'ODBC Driver 18 for SQL Server',
+      connection: {
+        host: 'localhost',
+        database: 'master',
+        port: 1433,
+        options: {
+          encrypt: true,
+          trustedConnection: true,
+          trustServerCertificate: true,
+        },
+      },
+      pool: {
+        min: 10,
+        max: 100,
+      },
+    };
+
+    const numConnections = 100;
+    const dbConnections = [];
+
+    try {
+      // Create multiple DB connections concurrently
+      for (let i = 0; i < numConnections; i++) {
+        const db = knex(config);
+        const result = await db.raw('select 1');
+        dbConnections.push({ db, result });
+      }
+
+      // Check that all connections were successful
+      dbConnections.forEach(({ db, result }) => {
+        db.destroy();
+        const expectedResult = [{ '': 1 }];
+        expect(result).toEqual(expectedResult);
+      });
+    } catch (error) {
+      // Handle any errors that may occur during connection creation or execution
+      throw error;
+    } finally {
+      // Ensure all DB connections are properly closed
+      dbConnections.forEach(({ db }) => {
+        db.destroy();
+      });
     }
-
-    // Check that all connections were successful
-    dbConnections.forEach(({ db, result }) => {
-      db.destroy();
-      const expectedResult = [{ '': 1 }];
-      expect(result).toEqual(expectedResult);
-    });
-  } catch (error) {
-    // Handle any errors that may occur during connection creation or execution
-    throw error;
-  } finally {
-    // Ensure all DB connections are properly closed
-    dbConnections.forEach(({ db }) => {
-      db.destroy();
-    });
-  }
-}, 100000);
+  }, 100000);
+});

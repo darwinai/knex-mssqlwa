@@ -145,7 +145,7 @@ class Client_MSSQL_WA extends knex.Client {
     const Driver = this._driver();
     const connectionPool = new Driver.ConnectionPool(poolConfig);
     connectionPool.on('error', (err) => {
-      console.error('A connection error occurred:', err);
+      console.error('initializePool::A connection error occurred:', err);
     });
     this._connectionPool = connectionPool;
   }
@@ -154,9 +154,12 @@ class Client_MSSQL_WA extends knex.Client {
   // connection needs to be added to the pool.
   acquireRawConnection() {
     return new Promise((resolver, rejecter) => {
-      debug('connection::connection new connection requested');
+      debug('acquireRawConnection::new connection requested');
       this._connectionPool.connect((err, pool) => {
-        if (err) return rejecter(err);
+        if (err) {
+          return rejecter(err);
+        }
+        debug('acquireRawConnection::new connection request succeeded');
         return resolver(pool);
       });
     });
@@ -169,8 +172,9 @@ class Client_MSSQL_WA extends knex.Client {
   // Used to explicitly close a connection, called internally by the pool
   // when a connection times out or the pool is shutdown.
   async destroyRawConnection(connection) {
-    debug('connection::destroy');
-    return await connection.close();
+    // The passed connection parameter is a referencing the internal connection
+    // pool. Therefore, no action is needed at this point.
+    debug('destroyRawConnection::no action is taken within the dialect.');
   }
 
   // Position the bindings for the query.
